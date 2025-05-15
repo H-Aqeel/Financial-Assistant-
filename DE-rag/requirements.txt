@@ -12,4 +12,6 @@ fastembed
 pikepdf
 sentence-transformers
 elevenlabs==0.2.27
+pip install serpapi
+pip install --upgrade langchain openai
 

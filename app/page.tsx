@@ -1,5 +1,5 @@
 import type React from "react"
-import { ArrowRight, BarChart3, FileText, LineChart, MessageSquare, TrendingUp } from "lucide-react"
+import { ArrowRight, FileText, LineChart, MessageSquare, TrendingUp, BarChart3 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
@@ -12,7 +12,7 @@ export default function LandingPage() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <TrendingUp className="h-6 w-6" />
-            <span className="font-bold text-xl">FinancePak</span>
+            <span className="font-bold text-xl">FinPilot</span>
           </div>
         </div>
       </header>
@@ -23,16 +23,21 @@ export default function LandingPage() {
           <div className="grid gap-12 items-center max-w-3xl mx-auto text-center">
             <div className="space-y-6">
               <h1 className="text-4xl md:text-5xl font-bold leading-tight">
-                Smart Financial Assistant for the Stock Exchange
+                Smart Financial Assistant for the High TECH Comapnies
               </h1>
               <p className="text-xl opacity-90">
-                Empower your investment decisions with AI-powered analysis of PSX data, financial documents, and market
+                Empower your investment decisions with AI-powered analysis of data, financial documents, and market
                 news.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button size="lg" className="bg-white text-green-600 hover:bg-gray-100">
                   <Link href="/chat" className="flex items-center">
-                    Try It Now <ArrowRight className="ml-2 h-5 w-5" />
+                    Chat Now <ArrowRight className="ml-2 h-5 w-5" />
+                  </Link>
+                </Button>
+                <Button size="lg" variant="outline" className="border-white text-green-600 bg-white hover:bg-gray-100">
+                  <Link href="/document-summarization" className="flex items-center">
+                    <FileText className="mr-2 h-5 w-5" /> Document Summarization
                   </Link>
                 </Button>
                 <Button size="lg" variant="outline" className="border-white text-green-600 bg-white hover:bg-gray-100">
@@ -52,7 +57,7 @@ export default function LandingPage() {
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-green-800">Powerful Financial Intelligence</h2>
             <p className="text-gray-600 mt-4 max-w-2xl mx-auto">
-              Our platform combines multiple data sources with advanced AI to deliver actionable insights for Pakistani
+              Our platform combines multiple data sources with advanced AI to deliver actionable insights for
               investors.
             </p>
           </div>
@@ -60,7 +65,7 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             <FeatureCard
               icon={<BarChart3 className="h-10 w-10 text-green-600" />}
-              title="PSX Data Analysis"
+              title="Data Analysis"
               description="Access and analyze daily Pakistan Stock Exchange data with intuitive visualizations."
             />
             <FeatureCard
@@ -99,7 +104,7 @@ export default function LandingPage() {
               </div>
               <h3 className="text-xl font-bold text-green-800 mb-2">Access Market Data</h3>
               <p className="text-gray-600">
-                Get real-time PSX data, market trends, and financial news in one unified dashboard.
+                Get real-time data, market trends, and financial news in one unified dashboard.
               </p>
             </div>
 
@@ -134,7 +139,7 @@ export default function LandingPage() {
               <div className="bg-green-50 p-6 rounded-lg border border-green-100 shadow-sm">
                 <div className="flex items-center gap-3 mb-4">
                   <MessageSquare className="h-6 w-6 text-green-600" />
-                  <h3 className="text-xl font-bold text-green-800">Ask about PSX data or documents</h3>
+                  <h3 className="text-xl font-bold text-green-800">Ask about Companies data or documents</h3>
                 </div>
                 <div className="bg-white p-4 rounded-lg border border-green-100 mb-4">
                   <p className="text-gray-700">
@@ -143,7 +148,7 @@ export default function LandingPage() {
                 </div>
                 <div className="bg-green-100 p-4 rounded-lg">
                   <p className="text-gray-800">
-                    "Based on the PSX data, the banking sector has shown a 7.2% growth over the last quarter,
+                    "Based on the data, the banking sector has shown a 7.2% growth over the last quarter,
                     outperforming the energy sector which grew by 4.5%. Key banking stocks like MCB and HBL have driven
                     this growth with strong quarterly results and increased dividend payouts."
                   </p>
@@ -186,12 +191,17 @@ export default function LandingPage() {
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-6">Ready to Transform Your Investment Decisions?</h2>
           <p className="text-xl opacity-90 max-w-2xl mx-auto mb-8">
-            Join Pakistani investors who are making smarter, data-driven decisions with our AI-powered financial
+            Join investors who are making smarter, data-driven decisions with our AI-powered financial
             assistant.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" className="bg-white text-green-600 hover:bg-gray-100">
               <Link href="/chat">Get Started Now</Link>
+            </Button>
+            <Button size="lg" variant="outline" className="border-white text-green-600 bg-white hover:bg-gray-100">
+              <Link href="/document-summarization">
+                <FileText className="mr-2 h-5 w-5" /> Analyze Documents
+              </Link>
             </Button>
             <Button size="lg" variant="outline" className="border-white text-green-600 bg-white hover:bg-gray-100">
               <Link href="/visualizations">

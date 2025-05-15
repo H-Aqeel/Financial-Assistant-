@@ -1,26 +1,28 @@
 "use client"
 
 import type React from "react"
+
 import { useState, useRef, useEffect } from "react"
 import { Bot, ChevronLeft, Send, User } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
+import { fetchRAGAnswer } from "@/app/api/api"
 
 type Message = {
   id: string
   content: string
   role: "user" | "assistant"
-  timestamp: Date
+  timestamp: string
 }
 
 const exampleQuestions = [
-  "How is the KSE-100 index performing this week?",
-  "What are the top performing sectors in PSX right now?",
-  "Can you analyze the banking sector performance?",
-  "What's the outlook for energy stocks?",
-  "How have recent economic policies affected the market?",
+"What is the current market capitalization of Apple, and how has it evolved over the past decade?",
+  "How has Tesla's stock price been influenced by its inclusion in the S&P 500 and its focus on artificial intelligence?",
+  "What are the major revenue sources for Microsoft, and how have they contributed to its stock market valuation?",
+  "How has Alphabet (Google) maintained its market value through its dominance in online advertising?",
+  "What impact did Meta's rebranding from Facebook and its metaverse investments have on its stock performance?",
 ]
 
 export default function ChatPage() {
@@ -30,7 +32,7 @@ export default function ChatPage() {
       content:
         "Hello! I'm your financial assistant. Ask me anything about the stock exchange, market trends, or specific sectors.",
       role: "assistant",
-      timestamp: new Date(),
+      timestamp: "00:00",
     },
   ])
   const [input, setInput] = useState("")
@@ -50,44 +52,37 @@ export default function ChatPage() {
 
     if (!input.trim()) return
 
+    // Add user message with current client-side timestamp
     const userMessage: Message = {
       id: Date.now().toString(),
       content: input,
       role: "user",
-      timestamp: new Date(),
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     }
 
     setMessages((prev) => [...prev, userMessage])
     setInput("")
     setIsTyping(true)
 
+    // Fetch bot response from RAG
     try {
-      const res = await fetch("/api/rag", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: input }),
-      })
-
-      const data = await res.json()
-
+      const response = await fetchRAGAnswer(input); // Fetch the response object
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: data.answer || "Sorry, something went wrong.",
+        content: response.answer, // Extract the 'answer' property
         role: "assistant",
-        timestamp: new Date(),
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       }
 
       setMessages((prev) => [...prev, botMessage])
     } catch (error) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          content: "Failed to fetch response. Please try again.",
-          role: "assistant",
-          timestamp: new Date(),
-        },
-      ])
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: "Sorry, I encountered an error while fetching the response.",
+        role: "assistant",
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      }
+      setMessages((prev) => [...prev, errorMessage])
     } finally {
       setIsTyping(false)
     }
@@ -129,7 +124,7 @@ export default function ChatPage() {
                 <div>
                   <p>{message.content}</p>
                   <p className="text-xs opacity-70 mt-1">
-                    {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    {message.timestamp}
                   </p>
                 </div>
               </div>
@@ -141,15 +136,18 @@ export default function ChatPage() {
               <div className="bg-gray-100 text-gray-800 rounded-t-lg rounded-br-lg p-4 flex gap-3">
                 <Bot className="h-5 w-5" />
                 <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <div
+                    className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                    style={{ animationDelay: "0ms" }}
+                  ></div>
                   <div
                     className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
                     style={{ animationDelay: "150ms" }}
-                  />
+                  ></div>
                   <div
                     className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
                     style={{ animationDelay: "300ms" }}
-                  />
+                  ></div>
                 </div>
               </div>
             </div>

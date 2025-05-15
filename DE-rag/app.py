@@ -30,11 +30,6 @@ COLLECTION_NAME = "docs-financial-rag"
 MODEL_NAME = "llama3.2"
 ALLOWED_EXTENSIONS = ['.pdf', '.txt', '.json']
 
-# from langchain_community.embeddings import FastEmbedEmbeddings
-#
-# model = FastEmbedEmbeddings(model_name="BAAI/bge-small-en")
-# embeddings = model.embed_documents(["This is a test", "FastEmbed is working"])
-# print(embeddings)
 
 def save_uploaded_files(uploaded_files) -> List[str]:
     """Save uploaded files and return their paths"""
@@ -70,25 +65,21 @@ def text_to_speech(text: str, api_key: str = None) -> BytesIO:
         return None
 
     try:
-        # Set the API key explicitly first
         import elevenlabs
         elevenlabs.set_api_key(api_key)
 
-        # Get available voices
         try:
             voices = elevenlabs.voices()
             if not voices:
                 st.error("No voices available in your ElevenLabs account")
                 return None
 
-            # Use the first available voice
             voice_id = voices[0].voice_id
         except Exception as voice_error:
             st.warning(f"Could not retrieve voices: {str(voice_error)}. Using default voice.")
             # Use a default voice from ElevenLabs free tier
             voice_id = "21m00Tcm4TlvDq8ikWAM"  # Adam voice (default voice)
 
-        # Now generate the audio
         audio = elevenlabs.generate(
             text=text,
             voice=st.session_state.get("selected_voice_id", "21m00Tcm4TlvDq8ikWAM"),
@@ -117,7 +108,6 @@ def main():
 
     st.title("Finance Assistant")
 
-    # Initialize session state variables
     if 'vector_db_created' not in st.session_state:
         st.session_state.vector_db_created = False
     if 'rag_chain' not in st.session_state:
@@ -127,21 +117,17 @@ def main():
     if 'selected_voice_id' not in st.session_state:
         st.session_state.selected_voice_id = "21m00Tcm4TlvDq8ikWAM"  # Default voice ID (Adam)
 
-    # Check if database exists at startup
     if os.path.exists(DB_PATH) and not st.session_state.vector_db_created:
         st.session_state.vector_db_created = True
 
-    # Sidebar for database operations
     st.sidebar.title("Database Operations")
 
-    # Check if database exists
     db_exists = os.path.exists(DB_PATH)
     if db_exists:
         st.sidebar.success("Vector database exists! Ready to answer questions.")
     else:
         st.sidebar.warning("No vector database found. Please upload documents.")
 
-    # Upload files section
     st.sidebar.header("Upload Documents")
     uploaded_files = st.sidebar.file_uploader(
         "Upload PDF, TXT, or JSON files",
@@ -149,23 +135,18 @@ def main():
         type=["pdf", "txt", "json"]
     )
 
-    # Database creation options
     with st.sidebar.expander("Advanced Options", expanded=False):
-        chunk_size = st.number_input("Chunk Size", value=1200, min_value=500, max_value=2000)
-        chunk_overlap = st.number_input("Chunk Overlap", value=300, min_value=0, max_value=500)
-        # use_fast_embeddings = st.checkbox("Use Fast Embeddings", value=True)
+        chunk_size = st.number_input("Chunk Size", value=600, min_value=100, max_value=1000)
+        chunk_overlap = st.number_input("Chunk Overlap", value=100, min_value=0, max_value=300)
 
-    # Create database button
     if st.sidebar.button("Process Documents & Create Database"):
         if not uploaded_files:
             st.sidebar.error("Please upload at least one document.")
         else:
             with st.sidebar.status("Processing documents..."):
-                # Save the uploaded files to disk
                 file_paths = save_uploaded_files(uploaded_files)
 
                 if file_paths:
-                    # Process the documents
                     st.sidebar.text(f"Processing {len(file_paths)} documents...")
                     docs = process_documents(
                         file_paths,
@@ -173,13 +154,11 @@ def main():
                         chunk_overlap=chunk_overlap
                     )
 
-                    # Create or update the vector database
                     st.sidebar.text("Creating vector database...")
                     vector_db = create_vector_db(
                         docs,
                         persist_directory=DB_PATH,
                         collection_name=COLLECTION_NAME,
-                        # use_fast_embeddings=use_fast_embeddings
                     )
 
                     st.session_state.vector_db_created = True
@@ -187,33 +166,27 @@ def main():
                 else:
                     st.sidebar.error("No valid documents were uploaded.")
 
-    # Delete database button
     if st.sidebar.button("Delete Database"):
         if os.path.exists(DB_PATH):
             import shutil
             shutil.rmtree(DB_PATH)
             st.session_state.vector_db_created = False
-            st.session_state.rag_chain = None  # Clear the RAG chain when DB is deleted
+            st.session_state.rag_chain = None
             st.sidebar.success("Database deleted successfully.")
         else:
             st.sidebar.info("No database to delete.")
 
-    # Main area for question answering
     st.header("Finance Assistant")
 
-    # Check if chain is loaded or needs to be loaded
     if st.session_state.vector_db_created and not st.session_state.rag_chain:
         with st.status("Loading RAG chain..."):
             try:
-                # Load the vector database
                 vector_db = load_vector_db(
                     persist_directory=DB_PATH,
                     collection_name=COLLECTION_NAME,
-                    # use_fast_embeddings=use_fast_embeddings
                 )
 
                 if vector_db:
-                    # Create RAG chain
                     st.session_state.rag_chain = create_rag_chain(vector_db, MODEL_NAME)
                     st.success("Ready to answer your questions!")
                 else:
@@ -222,7 +195,6 @@ def main():
                 st.error(f"Error loading database: {str(e)}")
                 st.session_state.vector_db_created = False
 
-    # Question input
     if st.session_state.vector_db_created:
         col1, col2 = st.columns([3, 1])
 
@@ -264,7 +236,6 @@ def main():
                             st.info("Could not fetch voices. Will use default voice.")
                             st.session_state.selected_voice_id = "21m00Tcm4TlvDq8ikWAM"  # Adam (default)
 
-        # Submit button
         if st.button("Get Results"):
             if not question:
                 st.warning("Please enter a question.")
@@ -286,7 +257,6 @@ def main():
 
             col1, col2 = st.columns(2)
 
-            # Download button
             with col1:
                 if st.button("Download Result"):
                     download_data = st.session_state.last_response.encode()
@@ -299,7 +269,6 @@ def main():
                         unsafe_allow_html=True
                     )
 
-            # Voice playback
             with col2:
                 if voice_enabled and st.button("Play Voice"):
                     with st.spinner("Generating voice..."):
@@ -309,7 +278,6 @@ def main():
     else:
         st.info("Please upload documents and create a vector database to start asking questions.")
 
-    # Footer
     st.markdown("---")
     st.markdown(
         "**A DE Project** - by Attqa, Rabia, Nawal and Hamna"

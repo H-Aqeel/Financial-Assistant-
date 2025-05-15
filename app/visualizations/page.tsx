@@ -1,19 +1,18 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { ChevronLeft, RefreshCw, TrendingUp, BarChart3, PieChart, Activity } from "lucide-react"
+import { ChevronLeft, TrendingUp, Search, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
 import {
   LineChart,
   Line,
   BarChart,
   Bar,
-  PieChart as RechartsPieChart,
-  Pie,
-  Cell,
   AreaChart,
   Area,
   XAxis,
@@ -24,70 +23,92 @@ import {
   ResponsiveContainer,
 } from "recharts"
 
-// Mock data for visualizations
-const kse100Data = [
-  { date: "May 1", value: 52100 },
-  { date: "May 2", value: 52300 },
-  { date: "May 3", value: 52250 },
-  { date: "May 4", value: 52400 },
-  { date: "May 5", value: 52600 },
-  { date: "May 6", value: 52750 },
-  { date: "May 7", value: 52650 },
-  { date: "May 8", value: 52876 },
-]
-
-const sectorPerformanceData = [
-  { name: "Banking", value: 7.2 },
-  { name: "Energy", value: 4.5 },
-  { name: "Cement", value: 3.8 },
-  { name: "Textile", value: 2.9 },
-  { name: "Technology", value: 6.5 },
-  { name: "Fertilizer", value: 5.1 },
-]
-
-const marketCapData = [
-  { name: "Banking", value: 35 },
-  { name: "Energy", value: 25 },
-  { name: "Cement", value: 15 },
-  { name: "Textile", value: 10 },
-  { name: "Technology", value: 8 },
-  { name: "Others", value: 7 },
-]
-
-const tradingVolumeData = [
-  { date: "May 1", volume: 120 },
-  { date: "May 2", volume: 145 },
-  { date: "May 3", volume: 132 },
-  { date: "May 4", volume: 148 },
-  { date: "May 5", volume: 160 },
-  { date: "May 6", volume: 175 },
-  { date: "May 7", volume: 155 },
-  { date: "May 8", volume: 168 },
-]
-
-const topStocksData = [
-  { name: "OGDC", value: 3.42 },
-  { name: "PPL", value: 2.87 },
-  { name: "LUCK", value: 2.65 },
-  { name: "MCB", value: 2.14 },
-  { name: "UBL", value: 1.98 },
-]
-
-const COLORS = ["#16a34a", "#22c55e", "#4ade80", "#86efac", "#bbf7d0", "#dcfce7"]
-
 export default function VisualizationsPage() {
-  const [lastUpdated, setLastUpdated] = useState(new Date())
+  const [selectedSymbol, setSelectedSymbol] = useState("AAPL")
+  const [symbols, setSymbols] = useState([])
+  const [volumeData, setVolumeData] = useState([])
+  const [priceData, setPriceData] = useState([])
+  const [searchQuery, setSearchQuery] = useState("")
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState(new Date())
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  // Fetch symbols from API
+  useEffect(() => {
+    const fetchSymbols = async () => {
+      try {
+        const response = await fetch("http://localhost:5001/api/symbols")
+        if (!response.ok) throw new Error("Failed to fetch symbols")
+        const data = await response.json()
+        setSymbols(data.map(symbol => ({ value: symbol, label: `${symbol}` })))
+      } catch (error) {
+        console.error("Error fetching symbols:", error)
+        setError("Failed to load symbols")
+      }
+    }
+    fetchSymbols()
+  }, [])
+
+  // Fetch stock data from API
+  useEffect(() => {
+    const fetchStockData = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const response = await fetch(`http://localhost:5001/api/stock_data/${selectedSymbol}`)
+        if (!response.ok) throw new Error("Failed to fetch stock data")
+        const data = await response.json()
+        console.log("Fetched stock data:", data) // Debug log
+
+        // Transform API data for charts, ensuring numbers, and reverse for oldest to newest
+        const transformedData = data.map(item => ({
+          date: new Date(item.date).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit" }),
+          open: Number(item.open),
+          high: Number(item.high),
+          low: Number(item.low),
+          close: Number(item.close),
+          volume: Number(item.volume),
+          price: Number(item.close) // Ensure price is a number
+        })).reverse() // Reverse to show oldest to newest on X-axis
+
+        setPriceData(transformedData)
+        setVolumeData(transformedData.map(item => ({ date: item.date, volume: Number(item.volume) })))
+      } catch (error) {
+        console.error("Error fetching stock data:", error)
+        setError("Failed to load stock data")
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchStockData()
+  }, [selectedSymbol])
+
+  const handleSymbolChange = (value) => {
+    setSelectedSymbol(value)
+  }
 
   const refreshData = () => {
     setIsRefreshing(true)
-
-    // Simulate data refresh
     setTimeout(() => {
-      setLastUpdated(new Date())
       setIsRefreshing(false)
+      setLastUpdated(new Date())
     }, 1000)
   }
+
+  const formatNumber = (num) => {
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+  }
+
+  const filteredSymbols = symbols.filter(
+    (symbol) =>
+      symbol.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      symbol.value.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  if (loading) return <div className="text-center py-10">Loading...</div>
+  if (error) return <div className="text-center py-10 text-red-500">{error}</div>
+  if (!priceData.length) return <div className="text-center py-10">No data available for {selectedSymbol}</div>
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -98,250 +119,196 @@ export default function VisualizationsPage() {
             <span>Back to Home</span>
           </Link>
           <div className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            <span className="font-bold">Market Visualizations</span>
+            <TrendingUp className="h-5 w-5" />
+            <span className="font-bold">Stock Data Dashboard</span>
           </div>
           <Button
-            variant="outline"
             size="sm"
-            className="text-white border-white hover:bg-green-700"
+            className="bg-green-500 text-white hover:bg-green-600"
             onClick={refreshData}
             disabled={isRefreshing}
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-            Refresh Data
+            Refresh
           </Button>
         </div>
       </header>
 
       <main className="flex-1 container mx-auto px-4 py-6">
-        <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-green-800">Real-Time Market Visualizations</h1>
-            <p className="text-gray-600">Interactive charts and graphs showing the latest PSX market data</p>
-          </div>
-          <div className="text-sm text-gray-500">
-            Last updated: {lastUpdated.toLocaleTimeString()} | {lastUpdated.toLocaleDateString()}
-          </div>
-        </div>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-green-800 text-center mb-6">Stock Data Dashboard</h1>
 
-        <div className="grid gap-6">
-          <Card className="border-green-100">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-green-800 flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                KSE-100 Index Performance
-              </CardTitle>
-              <CardDescription>Daily index values for the past week</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={kse100Data}>
-                    <defs>
-                      <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#16a34a" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="date" stroke="#6b7280" />
-                    <YAxis domain={[52000, 53000]} stroke="#6b7280" />
-                    <Tooltip />
-                    <Area type="monotone" dataKey="value" stroke="#16a34a" fillOpacity={1} fill="url(#colorValue)" />
-                  </AreaChart>
-                </ResponsiveContainer>
+          <div className="max-w-md mx-auto mb-8">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-gray-700 font-medium">Select Symbol:</span>
+                <Select value={selectedSymbol} onValueChange={handleSymbolChange}>
+                  <SelectTrigger className="w-[200px] border-green-200">
+                    <SelectValue placeholder="Select a stock" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <div className="py-2 px-3">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
+                        <Input
+                          placeholder="Search symbols..."
+                          className="pl-8 border-green-200"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    {filteredSymbols.map((symbol) => (
+                      <SelectItem key={symbol.value} value={symbol.value}>
+                        {symbol.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="bg-green-50 p-3 rounded-lg">
-                  <div className="text-sm text-gray-500">Current</div>
-                  <div className="text-xl font-bold text-green-800">52,876</div>
-                </div>
-                <div className="bg-green-50 p-3 rounded-lg">
-                  <div className="text-sm text-gray-500">Change</div>
-                  <div className="text-xl font-bold text-green-600">+1.24%</div>
-                </div>
-                <div className="bg-green-50 p-3 rounded-lg">
-                  <div className="text-sm text-gray-500">High</div>
-                  <div className="text-xl font-bold text-green-800">52,950</div>
-                </div>
-                <div className="bg-green-50 p-3 rounded-lg">
-                  <div className="text-sm text-gray-500">Low</div>
-                  <div className="text-xl font-bold text-green-800">52,100</div>
-                </div>
+              <div className="text-sm text-gray-500 text-center">
+                Last updated: {lastUpdated.toLocaleTimeString()} | {lastUpdated.toLocaleDateString()}
               </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card className="border-green-100">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-green-800 flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5" />
-                  Sector Performance
-                </CardTitle>
-                <CardDescription>Quarterly growth by sector (%)</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={sectorPerformanceData} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis type="number" stroke="#6b7280" />
-                      <YAxis dataKey="name" type="category" stroke="#6b7280" width={80} />
-                      <Tooltip />
-                      <Bar dataKey="value" fill="#16a34a" radius={[0, 4, 4, 0]}>
-                        {sectorPerformanceData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-green-100">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-green-800 flex items-center gap-2">
-                  <PieChart className="h-5 w-5" />
-                  Market Capitalization
-                </CardTitle>
-                <CardDescription>Distribution by sector (%)</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RechartsPieChart>
-                      <Pie
-                        data={marketCapData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={100}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {marketCapData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </RechartsPieChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
+            </div>
           </div>
 
           <Tabs defaultValue="volume" className="w-full">
-            <TabsList className="grid grid-cols-3 mb-4">
-              <TabsTrigger value="volume">Trading Volume</TabsTrigger>
-              <TabsTrigger value="gainers">Top Gainers</TabsTrigger>
-              <TabsTrigger value="comparison">Sector Comparison</TabsTrigger>
+            <TabsList className="grid grid-cols-3 mb-4 max-w-md mx-auto">
+              <TabsTrigger value="volume">Volume</TabsTrigger>
+              <TabsTrigger value="price">Price</TabsTrigger>
+              <TabsTrigger value="candlestick">OHLC</TabsTrigger>
             </TabsList>
+
             <TabsContent value="volume">
               <Card className="border-green-100">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-green-800 flex items-center gap-2">
-                    <Activity className="h-5 w-5" />
-                    Trading Volume
-                  </CardTitle>
-                  <CardDescription>Daily trading volume (in millions)</CardDescription>
+                  <CardTitle className="text-green-800 text-center">{selectedSymbol} Volume (Last 30 Days)</CardTitle>
+                  <CardDescription className="text-center">Daily trading volume</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[300px]">
+                  <div className="h-[400px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={tradingVolumeData}>
+                      <AreaChart data={volumeData}>
+                        <defs>
+                          <linearGradient id="colorVolume" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#16a34a" stopOpacity={0.8} />
+                            <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                         <XAxis dataKey="date" stroke="#6b7280" />
-                        <YAxis stroke="#6b7280" />
-                        <Tooltip />
-                        <Bar dataKey="volume" fill="#16a34a" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            <TabsContent value="gainers">
-              <Card className="border-green-100">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-green-800 flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
-                    Top Performing Stocks
-                  </CardTitle>
-                  <CardDescription>Daily percentage gain (%)</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={topStocksData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                        <XAxis dataKey="name" stroke="#6b7280" />
-                        <YAxis stroke="#6b7280" />
-                        <Tooltip />
-                        <Bar dataKey="value" fill="#16a34a" radius={[4, 4, 0, 0]}>
-                          {topStocksData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            <TabsContent value="comparison">
-              <Card className="border-green-100">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-green-800 flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5" />
-                    Banking vs Energy Sector
-                  </CardTitle>
-                  <CardDescription>Quarterly performance comparison</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                        <XAxis
-                          dataKey="date"
+                        <YAxis
                           stroke="#6b7280"
-                          data={[{ date: "Q1" }, { date: "Q2" }, { date: "Q3" }, { date: "Q4" }]}
+                          tickFormatter={(value) => {
+                            if (value >= 1000000) return `${(value / 1000000).toFixed(0)}M`
+                            return value
+                          }}
                         />
-                        <YAxis stroke="#6b7280" />
-                        <Tooltip />
+                        <Tooltip
+                          formatter={(value) => [`${formatNumber(value)}`, "Volume"]}
+                          labelFormatter={(label) => `Date: ${label}`}
+                        />
+                        <Legend />
+                        <Area
+                          type="monotone"
+                          dataKey="volume"
+                          stroke="#16a34a"
+                          fillOpacity={1}
+                          fill="url(#colorVolume)"
+                          name={`${selectedSymbol} Volume`}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="price">
+              <Card className="borderthemed">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-green-800 text-center">{selectedSymbol} Price (Last 30 Days)</CardTitle>
+                  <CardDescription className="text-center">Daily closing price</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[400px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={priceData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis dataKey="date" stroke="#6b7280" />
+                        <YAxis stroke="#6b7280" domain={["auto", "auto"]} />
+                        <Tooltip
+                          formatter={(value) => [`$${value.toFixed(2)}`, "Price"]}
+                          labelFormatter={(label) => `Date: ${label}`}
+                        />
                         <Legend />
                         <Line
                           type="monotone"
-                          dataKey="banking"
+                          dataKey="price"
                           stroke="#16a34a"
                           strokeWidth={2}
-                          data={[
-                            { date: "Q1", banking: 5.2 },
-                            { date: "Q2", banking: 6.1 },
-                            { date: "Q3", banking: 7.2 },
-                            { date: "Q4", banking: 7.8 },
-                          ]}
-                          name="Banking"
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="energy"
-                          stroke="#0ea5e9"
-                          strokeWidth={2}
-                          data={[
-                            { date: "Q1", energy: 3.8 },
-                            { date: "Q2", energy: 4.2 },
-                            { date: "Q3", energy: 4.5 },
-                            { date: "Q4", energy: 5.1 },
-                          ]}
-                          name="Energy"
+                          dot={false}
+                          name={`${selectedSymbol} Price`}
                         />
                       </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className="bg-green-50 p-3 rounded-lg">
+                      <div className="text-sm text-gray-500">Current</div>
+                      <div className="text-xl font-bold text-green-800">
+                        ${Number(priceData[priceData.length - 1]?.price).toFixed(2)}
+                      </div>
+                    </div>
+                    <div className="bg-green-50 p-3 rounded-lg">
+                      <div className="text-sm text-gray-500">Change</div>
+                      <div className="text-xl font-bold text-green-600">
+                        {((Number(priceData[priceData.length - 1]?.price) / Number(priceData[0]?.price) - 1) * 100).toFixed(2)}%
+                      </div>
+                    </div>
+                    <div className="bg-green-50 p-3 rounded-lg">
+                      <div className="text-sm text-gray-500">High</div>
+                      <div className="text-xl font-bold text-green-800">
+                        ${Math.max(...priceData.map((d) => Number(d.price))).toFixed(2)}
+                      </div>
+                    </div>
+                    <div className="bg-green-50 p-3 rounded-lg">
+                      <div className="text-sm text-gray-500">Low</div>
+                      <div className="text-xl font-bold text-green-800">
+                        ${Math.min(...priceData.map((d) => Number(d.price))).toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="candlestick">
+              <Card className="border-green-100">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-green-800 text-center">
+                    {selectedSymbol} OHLC Data (Last 30 Days)
+                  </CardTitle>
+                  <CardDescription className="text-center">Open, High, Low, Close prices</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[400px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={priceData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis dataKey="date" stroke="#6b7280" />
+                        <YAxis stroke="#6b7280" domain={["auto", "auto"]} />
+                        <Tooltip
+                          formatter={(value) => [`$${value.toFixed(2)}`, ""]}
+                          labelFormatter={(label) => `Date: ${label}`}
+                        />
+                        <Legend />
+                        <Bar dataKey="high" fill="#16a34a" name="High" />
+                        <Bar dataKey="open" fill="#4ade80" name="Open" />
+                        <Bar dataKey="close" fill="#86efac" name="Close" />
+                        <Bar dataKey="low" fill="#bbf7d0" name="Low" />
+                      </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </CardContent>
@@ -351,7 +318,7 @@ export default function VisualizationsPage() {
         </div>
       </main>
 
-      <footer className="bg-green-600 text-white py-4">
+      <footer className="bg-green-600 text-white py-4 mt-auto">
         <div className="container mx-auto px-4 text-center text-sm">
           <p>© 2025 FinancePak. All market data is for informational purposes only.</p>
         </div>

@@ -1,8 +1,13 @@
+from pathlib import Path
 import os
-from typing import List, Optional
-from langchain.schema import Document
 from langchain_community.vectorstores import Chroma
 from langchain_ollama import OllamaEmbeddings
+from typing import Optional, List
+from langchain.schema import Document
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 
 def create_vector_db(documents: List[Document],
@@ -33,20 +38,29 @@ def load_vector_db(persist_directory: str = "./db/vector_db",
     """
     Load an existing vector database using Ollama embeddings.
     """
-    if not os.path.exists(persist_directory):
-        print(f"Vector DB directory '{persist_directory}' does not exist.")
-        return None
-
-    embedding_model = OllamaEmbeddings(model="nomic-embed-text")
-
     try:
+        Path(persist_directory).mkdir(parents=True, exist_ok=True)
+        print(f"Loading vector database from {persist_directory} with collection {collection_name}")
+
+        # Initialize embedding function with Ollama
+        embedding_model = OllamaEmbeddings(model="nomic-embed-text")
+        print("Using OllamaEmbeddings: nomic-embed-text")
+
+        # Initialize or load Chroma DB with the embedding function
         vector_db = Chroma(
             persist_directory=persist_directory,
             embedding_function=embedding_model,
             collection_name=collection_name,
         )
-        print(f"Loaded vector DB from {persist_directory} with {vector_db._collection.count()} documents")
+
+        # Get collection stats
+        count = vector_db._collection.count()
+        print(f"Loaded vector database with {count} documents")
+
         return vector_db
+
     except Exception as e:
-        print(f"Failed to load vector DB: {e}")
+        print(f"Error loading vector database: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return None
